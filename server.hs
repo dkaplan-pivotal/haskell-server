@@ -3,19 +3,26 @@
 import Web.Scotty
 import Database.PostgreSQL.Simple
 import Data.Monoid (mconcat)
-import Data.Text.Lazy
+import Data.Text.Lazy (pack, unpack, Text)
+import Control.Monad.IO.Class (liftIO)
+import Data.List (intercalate)
 
 main = do
     connection <- getConnection
-    text <- getList connection
     scotty 3000 $
-        listResource text
+        listResource connection
 
-listResource :: [Text] -> ScottyM ()
-listResource xs = get "/" $ do
-    html $ mconcat (["<h1>"] ++  [s]  ++ ["</h1>"])
+listResource :: Connection -> ScottyM ()
+listResource connection = get "/" $ do
+    xs <- liftIO $ getList connection
+    html $ mconcat . stringToText . makeHtml . textToString $ xs
     where
-        s = intercalate "</h1><h1>" xs
+        textToString :: [Text] -> [String]
+        textToString = Prelude.map unpack
+        makeHtml :: [String] -> [String]
+        makeHtml d = ["<h1>"] ++ [(intercalate "</h1><h1>" d)] ++ ["</h1>"]
+        stringToText :: [String] -> [Text]
+        stringToText = Prelude.map pack
 
 getList :: Connection -> IO [Text]
 getList conn = do
